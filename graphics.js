@@ -2,7 +2,7 @@
 // there is only one graphics program defined (gl_program), as the shaders allow all the input data to achieve all the needed effects.
 // vertex format for all geometry is V3-N3-T2
 
-var fovy, near, far;
+var fovy = 70, near = 1, far = 75;
 var gl, gl_program;
 
 // attribute locations
@@ -15,7 +15,7 @@ var cube_vbo, cube_ibo;
 
 let vshader_src =
 `
-	attribute vec4 v_coords;
+	attribute vec3 v_coords;
 	attribute vec3 v_normal;
 	attribute vec2 v_tcoord;
 
@@ -25,7 +25,7 @@ let vshader_src =
 	uniform mat4 u_modelview, u_projection;
 
 	void main() {
-		gl_Position = u_projection * u_modelview * v_coords;
+		gl_Position = u_projection * u_modelview * vec4(v_coords,1.);
 		f_normal = v_normal;
 		f_tcoord = v_tcoord;
 	}
@@ -48,6 +48,11 @@ let fshader_src =
 			gl_FragColor = vec4(f_tcoord,0,1);
 	}
 `;
+
+// converts a math.js matrix to an array
+function to_array(matrix) {
+	return math.flatten(matrix).valueOf();
+}
 
 function gfx_init() {
 	try {
@@ -124,7 +129,7 @@ function init_vbos() {
 		-0.5, 0.5, 0.5,		-1, 0, 0,	1, 1
 	]);
 
-	let cube_indices = new Uint32Array([			// cube has 36 indices
+	let cube_indices = new Uint16Array([			// cube has 36 indices
 		0, 	1,	2,	 2, 1, 	3,
 		4, 	5,	6,	 6, 5, 	7,
 		8, 	9, 	10, 10, 9, 	11,
@@ -136,7 +141,97 @@ function init_vbos() {
 	gl.bindBuffer(gl.ARRAY_BUFFER, cube_vbo);
 	gl.bufferData(gl.ARRAY_BUFFER, cube_data, gl.STATIC_DRAW);
 
+	gl.vertexAttribPointer(coords_loc, 3, gl.FLOAT, false, 32, 0);
+	gl.enableVertexAttribArray(coords_loc);
+	if(normal_loc != -1) {
+		gl.vertexAttribPointer(normal_loc, 3, gl.FLOAT, true, 32, 12);
+		gl.enableVertexAttribArray(normal_loc);
+	}
+	if(tcoord_loc != -1) {
+		gl.vertexAttribPointer(tcoord_loc, 2, gl.FLOAT, false, 32, 24);
+		gl.enableVertexAttribArray(tcoord_loc);
+	}
+
 	cube_ibo = gl.createBuffer();
 	gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, cube_ibo);
 	gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, cube_indices, gl.STATIC_DRAW);
+}
+
+function get_perspective(near, far, fovy, aspect) {
+	let persp = math.matrix([
+		[ 1./(aspect*math.tan(fovy/2.)), 0, 0, 0 ],
+		[ 0, 1./math.tan(fovy/2.), 0, 0 ],
+		[ 0, 0, -(far+near)/(far-near), -(2*far*near)/(far-near) ],
+		[ 0, 0, -1, 0 ]
+	]);
+	return persp;
+}
+
+// create a rotation matrix from given Euler angles (in degrees)
+function get_rotation(rot) {
+	rot[0] *= Math.PI/180.;
+	rot[1] *= Math.PI/180.;
+	rot[2] *= Math.PI/180.;
+	let cx = math.cos(rot[0]), sx = math.sin(rot[0]);
+	let cy = math.cos(rot[1]), sy = math.sin(rot[1]);
+	let cz = math.cos(rot[2]), sz = math.sin(rot[2]);
+
+	let x_rot = math.matrix([
+		[ cx, -sx, 0, 0 ],
+		[ sx, cx, 0, 0 ],
+		[ 0, 0, 1, 0 ],
+		[ 0, 0, 0, 1 ]
+	]);
+	let y_rot = math.matrix([
+		[ cy,  0, sy, 0 ],
+		[ 0,   1, 0,  0 ],
+		[ -sy, 0, cy, 0 ],
+		[ 0,   0, 0,  1 ]
+	]);
+	let z_rot = math.matrix([
+		[ 1, 0,  0,   0 ],
+		[ 0, cz, -sz, 0 ],
+		[ 0, sz, cz,  0 ],
+		[ 0, 0, 0, 1 ]
+	]);
+
+	return math.multiply(x_rot, math.multiply(y_rot, z_rot));
+}
+
+function update_projection() {
+	let proj = get_perspective(near, far, fovy * (Math.PI/180.), 2);
+	gl.uniformMatrix4fv(proj_loc, true, to_array(proj));
+}
+
+function draw_cube(pos, rot, scale, texture) {
+	if(texture != null) {
+		// bind texture to sampler
+	}
+
+	let m_translate = math.matrix([
+		[ 1, 0, 0, pos[0] ],
+		[ 0, 1, 0, pos[1] ],
+		[ 0, 0, 1, pos[2] ],
+		[ 0, 0, 0, 1 ]
+	]);
+
+	let m_scale = math.matrix([
+		[scale[0], 0, 0, 0 ],
+		[0, scale[1], 0, 0 ],
+		[0, 0, scale[2], 0 ],
+		[0, 0, 0, 1 ]
+	]);
+
+	let m_rotate = get_rotation(rot);
+	let model = math.multiply(m_translate, math.multiply(m_rotate, m_scale));
+	let view = math.identity(4,4);
+
+	let modelview = math.multiply(view, model);
+	gl.uniformMatrix4fv(mv_loc, true, to_array(modelview));
+
+	gl.uniform1i(is_tex_loc, texture != null);
+
+	gl.bindBuffer(gl.ARRAY_BUFFER, cube_vbo);
+	gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, cube_ibo);
+	gl.drawElements(gl.TRIANGLES, 36, gl.UNSIGNED_SHORT, 0);
 }
