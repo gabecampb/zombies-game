@@ -8,7 +8,7 @@ var gl, gl_program;
 // attribute locations
 var coords_loc, normal_loc, tcoord_loc;
 // uniform locations
-var mv_loc, proj_loc, is_tex_loc;
+var mv_loc, proj_loc, is_tex_loc, tex_loc;
 
 // interleaved (V3-N3-T2) VBOs + index buffers
 var cube_vbo, cube_ibo;
@@ -96,6 +96,7 @@ function init_program() {
 	mv_loc = gl.getUniformLocation(gl_program, "u_modelview");
 	proj_loc = gl.getUniformLocation(gl_program, "u_projection");
 	is_tex_loc = gl.getUniformLocation(gl_program, "u_is_textured");
+	tex_loc = gl.getUniformLocation(gl_program, "u_texture");
 	coords_loc = gl.getAttribLocation(gl_program, "v_coords");
 	normal_loc = gl.getAttribLocation(gl_program, "v_normal");
 	tcoord_loc = gl.getAttribLocation(gl_program, "v_tcoord");
@@ -198,16 +199,7 @@ function get_rotation(rot) {
 	return math.multiply(x_rot, math.multiply(y_rot, z_rot));
 }
 
-function update_projection() {
-	let proj = get_perspective(near, far, fovy * (Math.PI/180.), 2);
-	gl.uniformMatrix4fv(proj_loc, true, to_array(proj));
-}
-
-function draw_cube(pos, rot, scale, texture) {
-	if(texture != null) {
-		// bind texture to sampler
-	}
-
+function get_model_matrix(pos, rot, scale) {
 	let m_translate = math.matrix([
 		[ 1, 0, 0, pos[0] ],
 		[ 0, 1, 0, pos[1] ],
@@ -224,8 +216,24 @@ function draw_cube(pos, rot, scale, texture) {
 
 	let m_rotate = get_rotation(rot);
 	let model = math.multiply(m_translate, math.multiply(m_rotate, m_scale));
-	let view = math.identity(4,4);
 
+	return model;
+}
+
+function update_projection() {
+	let proj = get_perspective(near, far, fovy * (Math.PI/180.), 2);
+	gl.uniformMatrix4fv(proj_loc, true, to_array(proj));
+}
+
+function draw_cube(transform, texture) {
+	if(texture != null) {	// bind texture to sampler
+		gl.activeTexture(gl.TEXTURE0);
+		gl.bindTexture(gl.TEXTURE_2D, texture);
+		gl.uniform1i(tex_loc, 0);
+	}
+
+	let view = math.identity(4,4);
+	let model = transform;
 	let modelview = math.multiply(view, model);
 	gl.uniformMatrix4fv(mv_loc, true, to_array(modelview));
 
@@ -234,4 +242,35 @@ function draw_cube(pos, rot, scale, texture) {
 	gl.bindBuffer(gl.ARRAY_BUFFER, cube_vbo);
 	gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, cube_ibo);
 	gl.drawElements(gl.TRIANGLES, 36, gl.UNSIGNED_SHORT, 0);
+}
+
+
+
+
+
+function create_node(type) {
+	var node = {
+		type: type,					// NODE_AABB, or NODE_MODEL
+		pos: undefined,
+		rot: undefined,
+		scale: undefined,
+		texture: null,				// ID of GL TBO associated with this node
+
+		transform: math.identity(4,4),		// the node's transform matrix
+		children: null
+	}
+	return node;
+}
+
+function set_node_properties(node, pos, rot, scale) {
+	node.pos = pos;
+	node.rot = rot;
+	node.scale = scale;
+	node.transform = get_model_matrix(pos, rot, scale);
+}
+
+function draw_node(node) {
+	if(node.type == NODE_AABB)
+		return;
+	draw_cube(node.transform, node.texture);
 }
