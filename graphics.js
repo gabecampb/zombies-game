@@ -24,8 +24,8 @@ var cube_vbo, cube_ibo;
 function camera_dir(rot) {
 	let c = [0,0,-1,0];
 	let rot_mtx = get_rotation(rot);
-	let dir = math.multiply(rot_mtx, c);
-	return [dir[0], dir[1], dir[2]];
+	let dir = (math.multiply(rot_mtx, c)).valueOf();
+	return [ dir[0], dir[1], dir[2] ];
 }
 
 function camera_front(pos, rot) {
@@ -221,12 +221,12 @@ function get_lookat(eye, center, up) {
 
 // create a rotation matrix from given Euler angles (in degrees)
 function get_rotation(rot) {
-	rot[0] *= Math.PI/180.;
-	rot[1] *= Math.PI/180.;
-	rot[2] *= Math.PI/180.;
-	let cx = math.cos(rot[0]), sx = math.sin(rot[0]);
-	let cy = math.cos(rot[1]), sy = math.sin(rot[1]);
-	let cz = math.cos(rot[2]), sz = math.sin(rot[2]);
+	let rx = rot[0] * (Math.PI/180.);
+	let ry = rot[1] * (Math.PI/180.);
+	let rz = rot[2] * (Math.PI/180.);
+	let cx = math.cos(rx), sx = math.sin(rx);
+	let cy = math.cos(ry), sy = math.sin(ry);
+	let cz = math.cos(rz), sz = math.sin(rz);
 
 	let x_rot = math.matrix([
 		[ cx, -sx, 0, 0 ],
@@ -272,8 +272,7 @@ function get_model_matrix(pos, rot, scale) {
 }
 
 function update_viewproj() {
-	let dir = [0,0,-1];
-	view_mtx = get_lookat(camera_pos, dir, [0,1,0]);
+	view_mtx = get_lookat(camera_pos, camera_front(camera_pos, camera_rot), [0,1,0]);
 
 	let proj = get_perspective(near, far, fovy * (Math.PI/180.), 2);
 	gl.uniformMatrix4fv(proj_loc, true, to_array(proj));
@@ -304,9 +303,9 @@ function draw_cube(transform, texture) {
 function create_node(type) {
 	var node = {
 		type: type,					// NODE_AABB, or NODE_MODEL
-		pos: undefined,
-		rot: undefined,
-		scale: undefined,
+		pos: [0,0,0],
+		rot: [0,0,0],
+		scale: [1,1,1],
 		texture: null,				// ID of GL TBO associated with this node
 
 		transform: math.identity(4,4),		// the node's transform matrix
