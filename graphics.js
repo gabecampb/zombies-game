@@ -322,8 +322,16 @@ function set_node_properties(node, pos, rot, scale) {
 	node.transform = get_model_matrix(pos, rot, scale);
 }
 
+function add_child(node, child) {
+	if(node.children == null)
+		node.children = [ child ];
+	else node.children.push(child);
+}
+
 function draw_node(node) {
 	if(node.type == NODE_AABB)
 		return;
 	draw_cube(node.transform, node.texture);
+	for(let i = 0; node.children != null && i < node.children.length; i++)
+		draw_node(node.children[i]);
 }
