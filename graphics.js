@@ -4,6 +4,9 @@
 
 var fovy = 70, near = 1, far = 75;
 var gl, gl_program;
+var camera_pos = [ 0,0,0 ];
+var camera_rot = [ 0,0,0 ];
+var view_mtx;
 
 // attribute locations
 var coords_loc, normal_loc, tcoord_loc;
@@ -12,6 +15,32 @@ var mv_loc, proj_loc, is_tex_loc, tex_loc;
 
 // interleaved (V3-N3-T2) VBOs + index buffers
 var cube_vbo, cube_ibo;
+
+
+
+
+
+/* CAMERA FUNCTIONS */
+function camera_dir(rot) {
+	let c = [0,0,-1,0];
+	let rot_mtx = get_rotation(rot);
+	let dir = math.multiply(rot_mtx, c);
+	return [dir[0], dir[1], dir[2]];
+}
+
+function camera_front(pos, rot) {
+	return math.add(camera_pos, camera_dir(rot));
+}
+
+function camera_back(pos, rot) {
+	return math.subtract(camera_pos, camera_dir(rot));
+}
+
+
+
+
+
+
 
 let vshader_src =
 `
@@ -168,6 +197,28 @@ function get_perspective(near, far, fovy, aspect) {
 	return persp;
 }
 
+function get_lookat(eye, center, up) {
+	let n = math.subtract(eye, center);
+	n = math.divide(n, math.norm(n));
+	let u = math.cross(up, n);
+	u = math.divide(u, math.norm(u));
+	let v = math.cross(n, u);
+	v = math.divide(v, math.norm(v));
+
+	let dx = -math.dot(eye, u);
+	let dy = -math.dot(eye, v);
+	let dz = -math.dot(eye, n);
+
+	let lookat = math.matrix([
+		[ u[0], u[1], u[2], dx ],
+		[ v[0], v[1], v[2], dy ],
+		[ n[0], n[1], n[2], dz ],
+		[ 0,    0,    0,    1  ]
+	]);
+
+	return lookat;
+}
+
 // create a rotation matrix from given Euler angles (in degrees)
 function get_rotation(rot) {
 	rot[0] *= Math.PI/180.;
@@ -220,7 +271,10 @@ function get_model_matrix(pos, rot, scale) {
 	return model;
 }
 
-function update_projection() {
+function update_viewproj() {
+	let dir = [0,0,-1];
+	view_mtx = get_lookat(camera_pos, dir, [0,1,0]);
+
 	let proj = get_perspective(near, far, fovy * (Math.PI/180.), 2);
 	gl.uniformMatrix4fv(proj_loc, true, to_array(proj));
 }
@@ -232,9 +286,8 @@ function draw_cube(transform, texture) {
 		gl.uniform1i(tex_loc, 0);
 	}
 
-	let view = math.identity(4,4);
 	let model = transform;
-	let modelview = math.multiply(view, model);
+	let modelview = math.multiply(view_mtx, model);
 	gl.uniformMatrix4fv(mv_loc, true, to_array(modelview));
 
 	gl.uniform1i(is_tex_loc, texture != null);
