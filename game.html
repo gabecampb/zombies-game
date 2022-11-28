@@ -22,11 +22,17 @@ This is a simple zombie FPS game.
 	</div>
 
 	<p style="font-family:monospace">
+	<b>Controls</b><br>
+	WASD - move<br>
+	V - toggle camera mode<br>
+	Shift - descend (fly mode only)<br>
+	Space - ascend (fly mode only)<br><br>
+
 	Below are vertical FOV, near, and far sliders, respectively.
 	</p>
 
 	<input id="fovy_slider" type="range" min="25" max="180" step="1" value="70"/>
-	<input id="near_slider" type="range" min="1" max="10" step=".05" value="1"/>
+	<input id="near_slider" type="range" min=".1" max="10" step=".05" value=".1"/>
 	<input id="far_slider" type="range" min="1" max="100" step=".05" value="75"/>
 </body>
 </html>

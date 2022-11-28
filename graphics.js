@@ -2,7 +2,7 @@
 // there is only one graphics program defined (gl_program), as the shaders allow all the input data to achieve all the needed effects.
 // vertex format for all geometry is V3-N3-T2
 
-var fovy = 70, near = 1, far = 75;
+var fovy = 70, near = .1, far = 75;
 var gl, gl_program;
 var camera_pos = [ 0,0,0 ];
 var camera_rot = [ 0,0,0 ];
@@ -23,6 +23,13 @@ var cube_vbo, cube_ibo;
 /* CAMERA FUNCTIONS */
 function camera_dir(rot) {
 	let c = [0,0,-1,0];
+	let rot_mtx = get_rotation(rot);
+	let dir = (math.multiply(rot_mtx, c)).valueOf();
+	return [ dir[0], dir[1], dir[2] ];
+}
+
+function camera_right_dir(rot) {
+	let c = [1,0,0,0];
 	let rot_mtx = get_rotation(rot);
 	let dir = (math.multiply(rot_mtx, c)).valueOf();
 	return [ dir[0], dir[1], dir[2] ];
@@ -100,6 +107,7 @@ function gfx_init() {
 
 	gl.clearColor(.2,.2,.2,1);
 	gl.enable(gl.DEPTH_TEST);
+	gl.enable(gl.CULL_FACE);
 }
 
 function init_program() {
