@@ -46,6 +46,9 @@ function main_loop() {
 
 	set_node_properties(base_node, base_node.pos, [0,0,0], [50,.5,50]);
 	draw_node(base_node);
+
+	render_zombies();
+	progress_zombies(cube_node.pos);
 }
 
 function toggle_key(key, state) {
