@@ -34,6 +34,7 @@ function main_loop() {
 	let z_shift = w_pressed-s_pressed;
 	let fwd = camera_dir(camera_rot);
 	let right = camera_right_dir(camera_rot);
+	fwd[1] = right[1] = 0;
 	if(fps_camera) {
 		translate_collider(coll_ids[0], math.multiply(right, x_shift*.1));
 		translate_collider(coll_ids[0], math.multiply(fwd, z_shift*.1));
@@ -64,6 +65,9 @@ function move_callback(e) {
 	let move_x = e.movementX || e.mozMovementX || e.webkitMovementX || 0;
 	let move_y = e.movementY || e.mozMovementY || e.webkitMovementY || 0;
 	camera_rot[1] -= move_x*.1;
+	camera_rot[2] -= move_y*.1;
+	if(camera_rot[2] <= -80) camera_rot[2] = -80;
+	if(camera_rot[2] >= 80) camera_rot[2] = 80;
 }
 
 function lock_change() {
