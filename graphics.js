@@ -237,9 +237,9 @@ function get_rotation(rot) {
 	let cz = math.cos(rz), sz = math.sin(rz);
 
 	let x_rot = math.matrix([
-		[ cx, -sx, 0, 0 ],
-		[ sx, cx, 0, 0 ],
-		[ 0, 0, 1, 0 ],
+		[ 1, 0,  0,   0 ],
+		[ 0, cx, -sx, 0 ],
+		[ 0, sx, cx,  0 ],
 		[ 0, 0, 0, 1 ]
 	]);
 	let y_rot = math.matrix([
@@ -249,13 +249,13 @@ function get_rotation(rot) {
 		[ 0,   0, 0,  1 ]
 	]);
 	let z_rot = math.matrix([
-		[ 1, 0,  0,   0 ],
-		[ 0, cz, -sz, 0 ],
-		[ 0, sz, cz,  0 ],
+		[ cz, -sz, 0, 0 ],
+		[ sz, cz, 0, 0 ],
+		[ 0, 0, 1, 0 ],
 		[ 0, 0, 0, 1 ]
 	]);
 
-	return math.multiply(x_rot, math.multiply(y_rot, z_rot));
+	return math.multiply(z_rot, math.multiply(y_rot, x_rot));
 }
 
 function get_model_matrix(pos, rot, scale) {

@@ -65,9 +65,9 @@ function move_callback(e) {
 	let move_x = e.movementX || e.mozMovementX || e.webkitMovementX || 0;
 	let move_y = e.movementY || e.mozMovementY || e.webkitMovementY || 0;
 	camera_rot[1] -= move_x*.1;
-	camera_rot[2] -= move_y*.1;
-	if(camera_rot[2] <= -80) camera_rot[2] = -80;
-	if(camera_rot[2] >= 80) camera_rot[2] = 80;
+	camera_rot[0] -= move_y*.1;
+	if(camera_rot[0] <= -80) camera_rot[0] = -80;
+	if(camera_rot[0] >= 80) camera_rot[0] = 80;
 }
 
 function lock_change() {
