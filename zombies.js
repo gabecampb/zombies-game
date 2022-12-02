@@ -3,6 +3,7 @@ var spawners = [ [0,0,-20] ];		// positions of all zombie spawners
 var last_spawn_time = 0;
 var zombie_limit = 5;
 var spawn_freq = 2;	// how often to spawn zombies (in seconds)
+var move_speed = .025;
 
 function add_zombie(pos) {
 	let zombie = {
@@ -25,9 +26,21 @@ function progress_zombies(track_pos) {
 	// move all zombies towards track_pos, if they can move in that direction
 	for(let i = 0; i < zombies.length; i++) {
 		let dir = math.subtract(track_pos, zombies[i].torso.pos);
-		dir.y = 0;
+		dir[1] = 0;
 		dir = math.divide(dir, math.norm(dir));
-		translate_collider(zombies[i].coll_id, math.multiply(dir,.025));
+
+		let new_rot = zombies[i].torso.rot[1];
+		if(dir[0] < 0)
+			new_rot = 180. + math.acos(math.dot(dir, [0,0,-1])) * (180./Math.PI);
+		else if(dir[0] > 0)
+			new_rot = math.acos(math.dot(dir, [0,0,1])) * (180./Math.PI);
+		let diff = (new_rot - zombies[i].torso.rot[1] + 180.) % 360. - 180.;
+		zombies[i].torso.rot[1] += (diff < -180 ? diff + 360 : diff)*.05;
+
+		let x_shift = [ dir[0]*move_speed,0,0 ];
+		let z_shift = [ 0,0,dir[2]*move_speed ];
+		translate_collider(zombies[i].coll_id, x_shift);
+		translate_collider(zombies[i].coll_id, z_shift);
 		translate_collider(zombies[i].coll_id, [0,-.1,0]);		// apply gravity
 	}
 }
