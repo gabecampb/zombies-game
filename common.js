@@ -6,3 +6,4 @@ var s_pressed = false;
 var d_pressed = false;
 var shift_pressed = false;
 var space_pressed = false;
+var player_coll_id;				// set at init() in main.js

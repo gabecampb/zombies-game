@@ -106,8 +106,13 @@ function init() {
 	set_node_properties(reticle_node, [0,0,0], [0,0,0], [.025,.05,.05]);
 
 	coll_ids.push(create_collider(cube_node.pos, cube_node.scale));
-	coll_ids.push(create_collider(base_node.pos, base_node.scale));
 	add_child(colliders[coll_ids[0]], cube_node);
+	player_coll_id = coll_ids[0];
+	canvas.addEventListener("mousedown", function(event) {
+		hit_zombie_check(check_ray_intersect(camera_pos, camera_dir(camera_rot), [ player_coll_id ]));
+	});
+
+	coll_ids.push(create_collider(base_node.pos, base_node.scale));
 	add_child(colliders[coll_ids[1]], base_node);
 
 	load_texture(base_node, "textures/grass.jpg");

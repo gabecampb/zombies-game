@@ -5,9 +5,20 @@ var zombie_limit = 5;
 var spawn_freq = 2.5;	// how often to spawn zombies (in seconds)
 var move_speed = .025;
 
+var awaiting_reload = false;
+function hit_player_check(coll_id) {
+	if(player_coll_id == coll_id) {
+		if(!awaiting_reload) {
+			alert("Player killed! Restarting.");
+			window.location = window.location.href;
+			awaiting_reload = true;
+		}
+	}
+}
+
 function add_zombie(pos) {
 	let zombie = {
-		health: 100,
+		hp: 3,			// each shot takes 1 hp
 		torso: create_node(NODE_MODEL),
 		coll_id: create_collider(pos, [1,2,1]),
 		start_time: performance.now()
@@ -41,6 +52,21 @@ function add_zombie(pos) {
 	add_child(zombie.torso, head);
 
 	zombies.push(zombie);
+}
+
+// damage zombie that owns collider specified by coll_id
+function hit_zombie_check(coll_id) {
+	for(let i = 0; i < zombies.length; i++)
+		if(zombies[i].coll_id == coll_id) {
+			zombies[i].hp--;
+			if(zombies[i].hp <= 0) {
+				zombies.splice(i,1);
+				colliders.splice(coll_id,1);
+				for(let j = i; j < zombies.length; j++)
+					zombies[j].coll_id--;
+			}
+			return;
+		}
 }
 
 function step_zombie_animation(zombie) {
@@ -107,10 +133,10 @@ function progress_zombies(track_pos) {
 		let x_shift = [ dir[0]*move_speed,0,0 ];
 		let z_shift = [ 0,0,dir[2]*move_speed ];
 		let old_pos = zombie.torso.pos;
-		translate_collider(zombie.coll_id, x_shift);
-		translate_collider(zombie.coll_id, z_shift);
+		hit_player_check(translate_collider(zombie.coll_id, x_shift));
+		hit_player_check(translate_collider(zombie.coll_id, z_shift));
 		let new_pos = zombie.torso.pos;
-		translate_collider(zombie.coll_id, [0,-.1,0]);		// apply gravity
+		hit_player_check(translate_collider(zombie.coll_id, [0,-.1,0]));		// apply gravity
 
 		if(math.norm(math.subtract(new_pos,old_pos)) > 0.01)
 			step_zombie_animation(zombie);		// only step if moved > 0.01 unit (accounts for numerical inaccuracy while zombie is standing still)
