@@ -258,7 +258,7 @@ function get_rotation(rot) {
 	return math.multiply(z_rot, math.multiply(y_rot, x_rot));
 }
 
-function get_model_matrix(pos, rot, scale) {
+function get_model_matrix(pos, rot, scale, pivot) {
 	let m_translate = math.matrix([
 		[ 1, 0, 0, pos[0] ],
 		[ 0, 1, 0, pos[1] ],
@@ -273,7 +273,14 @@ function get_model_matrix(pos, rot, scale) {
 		[0, 0, 0, 1 ]
 	]);
 
-	let m_rotate = get_rotation(rot);
+	let m_pivot = math.matrix([
+		[ 1, 0, 0, -pivot[0] ],
+		[ 0, 1, 0, -pivot[1] ],
+		[ 0, 0, 1, -pivot[2] ],
+		[ 0, 0, 0, 1 ]
+	]);
+
+	let m_rotate = math.multiply(math.inv(m_pivot), math.multiply(get_rotation(rot), m_pivot));
 	let model = math.multiply(m_translate, math.multiply(m_rotate, m_scale));
 
 	return model;
@@ -314,6 +321,7 @@ function create_node(type) {
 		pos: [0,0,0],
 		rot: [0,0,0],
 		scale: [1,1,1],
+		pivot: [0,0,0],
 		texture: null,				// ID of GL TBO associated with this node
 
 		transform: math.identity(4,4),		// the node's transform matrix
@@ -326,7 +334,12 @@ function set_node_properties(node, pos, rot, scale) {
 	node.pos = pos;
 	node.rot = rot;
 	node.scale = scale;
-	node.transform = get_model_matrix(pos, rot, scale);
+	node.transform = get_model_matrix(pos, rot, scale, node.pivot);
+}
+
+function set_node_pivot(node, pivot) {
+	node.pivot = pivot;
+	node.transform = get_model_matrix(node.pos, node.rot, node.scale, pivot);
 }
 
 function add_child(node, child) {
@@ -335,10 +348,13 @@ function add_child(node, child) {
 	else node.children.push(child);
 }
 
-function draw_node(node) {
+function draw_node(node, transform) {
 	if(node.type == NODE_AABB)
 		return;
-	draw_cube(node.transform, node.texture);
+
+	let tmat = transform == null ? node.transform : math.multiply(transform, node.transform);
+
+	draw_cube(tmat, node.texture);
 	for(let i = 0; node.children != null && i < node.children.length; i++)
-		draw_node(node.children[i]);
+		draw_node(node.children[i], tmat);
 }

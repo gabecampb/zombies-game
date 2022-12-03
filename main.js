@@ -23,11 +23,11 @@ function main_loop() {
 	requestAnimationFrame(main_loop);
 
 	gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-	if(fps_camera) camera_pos = cube_node.pos;
+	if(fps_camera) camera_pos = [cube_node.pos[0], cube_node.pos[1] + .2, cube_node.pos[2]];
 	update_viewproj();
 
 	set_node_properties(cube_node, cube_node.pos, [0,spin,0], cube_node.scale);
-	draw_node(cube_node);
+	draw_node(cube_node, null);
 	spin += 1;
 
 	let x_shift = d_pressed-a_pressed;
@@ -46,7 +46,7 @@ function main_loop() {
 	translate_collider(coll_ids[0], [0,-.1,0]);
 
 	set_node_properties(base_node, base_node.pos, [0,0,0], [50,.5,50]);
-	draw_node(base_node);
+	draw_node(base_node, null);
 
 	render_zombies();
 	progress_zombies(cube_node.pos);
