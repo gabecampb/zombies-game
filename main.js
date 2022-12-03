@@ -1,7 +1,7 @@
 "use strict";
 window.onload = init;
 
-var cube_node, base_node, coll_ids = [];
+var cube_node, base_node, reticle_node, coll_ids = [];
 var spin = 45;
 var fps_camera = true;
 
@@ -15,6 +15,8 @@ function main_loop() {
 	set_node_properties(cube_node, cube_node.pos, [0,spin,0], cube_node.scale);
 	draw_node(cube_node, null);
 	spin += 1;
+	draw_node(base_node, null);
+	render_zombies();
 
 	let x_shift = d_pressed-a_pressed;
 	let z_shift = w_pressed-s_pressed;
@@ -31,11 +33,10 @@ function main_loop() {
 	}
 	translate_collider(coll_ids[0], [0,-.1,0]);
 
-	set_node_properties(base_node, base_node.pos, [0,0,0], [50,.5,50]);
-	draw_node(base_node, null);
-
-	render_zombies();
 	progress_zombies(cube_node.pos);
+
+	clear_viewproj();
+	draw_node(reticle_node, null);
 }
 
 function toggle_key(key, state) {
@@ -99,8 +100,10 @@ function init() {
 
 	cube_node = create_node(NODE_MODEL);
 	base_node = create_node(NODE_MODEL);
+	reticle_node = create_node(NODE_MODEL);
 	set_node_properties(cube_node, [0,0,-8], [0,0,0], [1,2,1]);
 	set_node_properties(base_node, [0,-5,0], [0,0,0], [50,.5,50]);
+	set_node_properties(reticle_node, [0,0,0], [0,0,0], [.025,.05,.05]);
 
 	coll_ids.push(create_collider(cube_node.pos, cube_node.scale));
 	coll_ids.push(create_collider(base_node.pos, base_node.scale));
@@ -109,6 +112,9 @@ function init() {
 
 	load_texture(base_node, "textures/grass.jpg");
 	base_node.tex_scale = [10,10];
+
+	load_texture(reticle_node, "textures/reticle.png");
+	reticle_node.tex_scale = [1,1];
 
 	main_loop();
 }

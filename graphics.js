@@ -109,6 +109,8 @@ function gfx_init() {
 	gl.clearColor(.2,.2,.2,1);
 	gl.enable(gl.DEPTH_TEST);
 	gl.enable(gl.CULL_FACE);
+	gl.enable(gl.BLEND);
+	gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 }
 
 function init_program() {
@@ -286,6 +288,11 @@ function get_model_matrix(node) {
 	let model = math.multiply(m_translate, math.multiply(m_rotate, m_scale));
 
 	return model;
+}
+
+function clear_viewproj() {
+	view_mtx = math.identity(4,4);
+	gl.uniformMatrix4fv(proj_loc, true, to_array(math.identity(4,4)));
 }
 
 function update_viewproj() {
