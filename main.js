@@ -5,20 +5,6 @@ var cube_node, base_node, coll_ids = [];
 var spin = 45;
 var fps_camera = true;
 
-function create_checkboard() {
-	let tex_data = [];
-
-	for(let y = 0; y < 32; y++)
-		for(let x = 0; x < 32; x++) {
-			tex_data[(y*32+x)*4 + 0] = (x + y) % 2 == 0 ? 0xFF : 0;
-			tex_data[(y*32+x)*4 + 1] = (x + y) % 2 == 0 ? 0xFF : 0;
-			tex_data[(y*32+x)*4 + 2] = (x + y) % 2 == 0 ? 0xFF : 0;
-			tex_data[(y*32+x)*4 + 3] = (x + y) % 2 == 0 ? 0xFF : 0;
-		}
-
-	return tex_data;
-}
-
 function main_loop() {
 	requestAnimationFrame(main_loop);
 
@@ -121,13 +107,8 @@ function init() {
 	add_child(colliders[coll_ids[0]], cube_node);
 	add_child(colliders[coll_ids[1]], base_node);
 
-	let base_tex_data = new Uint8Array(create_checkboard());
-	let base_texture = gl.createTexture();
-	gl.bindTexture(gl.TEXTURE_2D, base_texture);
-	gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 32, 32, 0, gl.RGBA, gl.UNSIGNED_BYTE, base_tex_data);
-	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-	base_node.texture = base_texture;
+	load_texture(base_node, "textures/grass.jpg");
+	base_node.tex_scale = [10,10];
 
 	main_loop();
 }

@@ -11,7 +11,7 @@ var view_mtx;
 // attribute locations
 var coords_loc, normal_loc, tcoord_loc;
 // uniform locations
-var mv_loc, proj_loc, is_tex_loc, tex_loc;
+var mv_loc, proj_loc, is_tex_loc, tex_loc, tex_scale_loc;
 
 // interleaved (V3-N3-T2) VBOs + index buffers
 var cube_vbo, cube_ibo;
@@ -59,11 +59,12 @@ let vshader_src =
 	varying vec2 f_tcoord;
 
 	uniform mat4 u_modelview, u_projection;
+	uniform vec2 u_tex_scale;
 
 	void main() {
 		gl_Position = u_projection * u_modelview * vec4(v_coords,1.);
 		f_normal = v_normal;
-		f_tcoord = v_tcoord;
+		f_tcoord = v_tcoord * u_tex_scale;
 	}
 `;
 
@@ -134,6 +135,7 @@ function init_program() {
 	proj_loc = gl.getUniformLocation(gl_program, "u_projection");
 	is_tex_loc = gl.getUniformLocation(gl_program, "u_is_textured");
 	tex_loc = gl.getUniformLocation(gl_program, "u_texture");
+	tex_scale_loc = gl.getUniformLocation(gl_program, "u_tex_scale");
 	coords_loc = gl.getAttribLocation(gl_program, "v_coords");
 	normal_loc = gl.getAttribLocation(gl_program, "v_normal");
 	tcoord_loc = gl.getAttribLocation(gl_program, "v_tcoord");
@@ -258,29 +260,29 @@ function get_rotation(rot) {
 	return math.multiply(z_rot, math.multiply(y_rot, x_rot));
 }
 
-function get_model_matrix(pos, rot, scale, pivot) {
+function get_model_matrix(node) {
 	let m_translate = math.matrix([
-		[ 1, 0, 0, pos[0] ],
-		[ 0, 1, 0, pos[1] ],
-		[ 0, 0, 1, pos[2] ],
+		[ 1, 0, 0, node.pos[0] ],
+		[ 0, 1, 0, node.pos[1] ],
+		[ 0, 0, 1, node.pos[2] ],
 		[ 0, 0, 0, 1 ]
 	]);
 
 	let m_scale = math.matrix([
-		[scale[0], 0, 0, 0 ],
-		[0, scale[1], 0, 0 ],
-		[0, 0, scale[2], 0 ],
+		[node.scale[0], 0, 0, 0 ],
+		[0, node.scale[1], 0, 0 ],
+		[0, 0, node.scale[2], 0 ],
 		[0, 0, 0, 1 ]
 	]);
 
 	let m_pivot = math.matrix([
-		[ 1, 0, 0, -pivot[0] ],
-		[ 0, 1, 0, -pivot[1] ],
-		[ 0, 0, 1, -pivot[2] ],
+		[ 1, 0, 0, -node.pivot[0] ],
+		[ 0, 1, 0, -node.pivot[1] ],
+		[ 0, 0, 1, -node.pivot[2] ],
 		[ 0, 0, 0, 1 ]
 	]);
 
-	let m_rotate = math.multiply(math.inv(m_pivot), math.multiply(get_rotation(rot), m_pivot));
+	let m_rotate = math.multiply(math.inv(m_pivot), math.multiply(get_rotation(node.rot), m_pivot));
 	let model = math.multiply(m_translate, math.multiply(m_rotate, m_scale));
 
 	return model;
@@ -314,7 +316,6 @@ function draw_cube(transform, texture) {
 
 
 
-
 function create_node(type) {
 	var node = {
 		type: type,					// NODE_AABB, or NODE_MODEL
@@ -323,6 +324,7 @@ function create_node(type) {
 		scale: [1,1,1],
 		pivot: [0,0,0],
 		texture: null,				// ID of GL TBO associated with this node
+		tex_scale: [1,1],
 
 		transform: math.identity(4,4),		// the node's transform matrix
 		children: null
@@ -334,12 +336,13 @@ function set_node_properties(node, pos, rot, scale) {
 	node.pos = pos;
 	node.rot = rot;
 	node.scale = scale;
-	node.transform = get_model_matrix(pos, rot, scale, node.pivot);
+	node.transform = get_model_matrix(node);
 }
 
+// pivot point for rotation
 function set_node_pivot(node, pivot) {
 	node.pivot = pivot;
-	node.transform = get_model_matrix(node.pos, node.rot, node.scale, pivot);
+	node.transform = get_model_matrix(node);
 }
 
 function add_child(node, child) {
@@ -348,10 +351,12 @@ function add_child(node, child) {
 	else node.children.push(child);
 }
 
+// if transform is null, the node's transform will not be accumulated
 function draw_node(node, transform) {
 	if(node.type == NODE_AABB)
 		return;
 
+	gl.uniform2fv(tex_scale_loc, node.tex_scale);
 	let tmat = transform == null ? node.transform : math.multiply(transform, node.transform);
 
 	draw_cube(tmat, node.texture);
