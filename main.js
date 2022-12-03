@@ -4,6 +4,7 @@ window.onload = init;
 var cube_node, base_node, reticle_node, coll_ids = [];
 var spin = 45;
 var fps_camera = true;
+var last_shoot_time = -1;
 
 function main_loop() {
 	requestAnimationFrame(main_loop);
@@ -35,8 +36,10 @@ function main_loop() {
 
 	progress_zombies(cube_node.pos);
 
-	clear_viewproj();
-	draw_node(reticle_node, null);
+	if(last_shoot_time == -1 || performance.now()-last_shoot_time >= 1000) {
+		clear_viewproj();
+		draw_node(reticle_node, null);
+	}
 }
 
 function toggle_key(key, state) {
@@ -109,7 +112,10 @@ function init() {
 	add_child(colliders[coll_ids[0]], cube_node);
 	player_coll_id = coll_ids[0];
 	canvas.addEventListener("mousedown", function(event) {
-		hit_zombie_check(check_ray_intersect(camera_pos, camera_dir(camera_rot), [ player_coll_id ]));
+		if(last_shoot_time == -1 || performance.now()-last_shoot_time >= 1000) {
+			last_shoot_time = performance.now();
+			hit_zombie_check(check_ray_intersect(camera_pos, camera_dir(camera_rot), [ player_coll_id ]));
+		}
 	});
 
 	coll_ids.push(create_collider(base_node.pos, base_node.scale));
