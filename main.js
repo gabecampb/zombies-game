@@ -5,9 +5,12 @@ var cube_node, base_node, reticle_node, coll_ids = [];
 var spin = 45;
 var fps_camera = true;
 var last_shoot_time = -1;
+var shading_enabled = true;
 
 function main_loop() {
 	requestAnimationFrame(main_loop);
+
+	gl.uniform1i(is_shaded_loc, shading_enabled);
 
 	gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 	if(fps_camera) camera_pos = [cube_node.pos[0], cube_node.pos[1] + .2, cube_node.pos[2]];
@@ -38,7 +41,9 @@ function main_loop() {
 
 	if(last_shoot_time == -1 || performance.now()-last_shoot_time >= 1000) {
 		clear_viewproj();
+		gl.uniform1i(is_shaded_loc, false);
 		draw_node(reticle_node, null);
+		gl.uniform1i(is_shaded_loc, shading_enabled);
 	}
 }
 
@@ -95,6 +100,7 @@ function init() {
 
 	window.addEventListener("keydown", function(event) {
 		toggle_key(event.keyCode, true);
+		if(event.keyCode == 76) shading_enabled = !shading_enabled;
 		if(event.keyCode == 86) fps_camera = !fps_camera;
 	});
 	window.addEventListener("keyup", function(event) {

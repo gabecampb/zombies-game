@@ -8,15 +8,17 @@ var camera_pos = [ 0,0,0 ];
 var camera_rot = [ 0,0,0 ];
 var view_mtx;
 
+var light_positions = [ [0,0,0], [10,0,-10] ];
+var light_colors = [ [1,0,0], [1,1,0] ];
+
 // attribute locations
 var coords_loc, normal_loc, tcoord_loc;
 // uniform locations
-var mv_loc, proj_loc, is_tex_loc, tex_loc, tex_scale_loc;
+var model_loc, view_loc, proj_loc, is_tex_loc, tex_loc, normal_mtx_loc, tex_scale_loc;
+var is_shaded_loc, light_coords_loc, light_colors_loc, num_lights_loc, ambient_loc, view_pos_loc;
 
 // interleaved (V3-N3-T2) VBOs + index buffers
 var cube_vbo, cube_ibo;
-
-
 
 
 
@@ -45,10 +47,6 @@ function camera_back(pos, rot) {
 
 
 
-
-
-
-
 let vshader_src =
 `
 	attribute vec3 v_coords;
@@ -57,14 +55,16 @@ let vshader_src =
 
 	varying vec3 f_normal;
 	varying vec2 f_tcoord;
+	varying vec3 f_pos;
 
-	uniform mat4 u_modelview, u_projection;
+	uniform mat4 u_model, u_view, u_projection, u_normal_mtx;
 	uniform vec2 u_tex_scale;
 
 	void main() {
-		gl_Position = u_projection * u_modelview * vec4(v_coords,1.);
-		f_normal = v_normal;
+		gl_Position = u_projection * u_view * u_model * vec4(v_coords,1.);
+		f_normal = (u_normal_mtx * vec4(v_normal,1.)).xyz;
 		f_tcoord = v_tcoord * u_tex_scale;
+		f_pos = vec3(u_model * vec4(v_coords,1));
 	}
 `;
 
@@ -74,15 +74,56 @@ let fshader_src =
 
 	varying vec3 f_normal;
 	varying vec2 f_tcoord;
+	varying vec3 f_pos;
 
 	uniform bool u_is_textured;
 	uniform sampler2D u_texture;
 
+	uniform bool u_is_shaded;
+	uniform vec3 u_light_coords[10], u_light_colors[10];
+	uniform int u_num_lights;
+	uniform vec3 u_ambient, u_view_pos;
+
 	void main() {
+		vec4 base;
 		if(u_is_textured)
-			gl_FragColor = texture2D(u_texture, f_tcoord);
+			base = texture2D(u_texture, f_tcoord);
 		else
-			gl_FragColor = vec4(f_tcoord,0,1);
+			base = vec4(f_tcoord,0,1);
+
+		vec4 result;
+		if(u_is_shaded) {
+			vec3 accum = u_ambient;		// start with global ambient lighting
+			for(int i = 0; i < 10; i++) {
+				if(i >= u_num_lights) break;
+				vec3 light_color = u_light_colors[i];
+				vec3 light_pos = u_light_coords[i];
+
+				// calculate diffuse lighting
+				vec3 norm = normalize(f_normal);
+				vec3 light_dir = normalize(light_pos - f_pos);
+				float diff = max(dot(norm, light_dir), 0.);
+				vec3 diffuse = diff * light_color;
+
+				// calculate specular lighting (Blinn-Phong model)
+				float spec_strength = .3;
+				vec3 view_dir = normalize(u_view_pos - f_pos);
+				vec3 halfway_dir = normalize(light_dir + view_dir);
+				float spec = pow(max(dot(norm, halfway_dir), 0.), 8.);
+				vec3 specular = spec_strength * spec * light_color;
+
+				// calculate attenuation
+				float dist = length(light_pos - f_pos);
+				float attenuation = 1./(.1*dist*dist);
+
+				// combine the above calculations
+				accum += (diffuse + specular) * attenuation;
+			}
+			result = vec4(accum * base.rgb,base.a);
+		} else
+			result = base;
+
+		gl_FragColor = result;
 	}
 `;
 
@@ -106,7 +147,7 @@ function gfx_init() {
 	init_program();
 	init_vbos();
 
-	gl.clearColor(.2,.2,.2,1);
+	gl.clearColor(0,0,0,1);
 	gl.enable(gl.DEPTH_TEST);
 	gl.enable(gl.CULL_FACE);
 	gl.enable(gl.BLEND);
@@ -133,11 +174,20 @@ function init_program() {
 		throw new Error("Program linking error: " + gl.getProgramInfoLog(gl_program));
 	gl.useProgram(gl_program);
 
-	mv_loc = gl.getUniformLocation(gl_program, "u_modelview");
+	model_loc = gl.getUniformLocation(gl_program, "u_model");
+	view_loc = gl.getUniformLocation(gl_program, "u_view");
 	proj_loc = gl.getUniformLocation(gl_program, "u_projection");
 	is_tex_loc = gl.getUniformLocation(gl_program, "u_is_textured");
 	tex_loc = gl.getUniformLocation(gl_program, "u_texture");
+	normal_mtx_loc = gl.getUniformLocation(gl_program, "u_normal_mtx");
 	tex_scale_loc = gl.getUniformLocation(gl_program, "u_tex_scale");
+	is_shaded_loc = gl.getUniformLocation(gl_program, "u_is_shaded");
+	light_coords_loc = gl.getUniformLocation(gl_program, "u_light_coords");
+	light_colors_loc = gl.getUniformLocation(gl_program, "u_light_colors");
+	num_lights_loc = gl.getUniformLocation(gl_program, "u_num_lights");
+	ambient_loc = gl.getUniformLocation(gl_program, "u_ambient");
+	view_pos_loc = gl.getUniformLocation(gl_program, "u_view_pos");
+
 	coords_loc = gl.getAttribLocation(gl_program, "v_coords");
 	normal_loc = gl.getAttribLocation(gl_program, "v_normal");
 	tcoord_loc = gl.getAttribLocation(gl_program, "v_tcoord");
@@ -309,9 +359,18 @@ function draw_cube(transform, texture) {
 		gl.uniform1i(tex_loc, 0);
 	}
 
+	// update all lighting information
+	gl.uniform3fv(ambient_loc, [.0,.0,.0]);
+	gl.uniform3fv(light_coords_loc, math.flatten(light_positions));
+	gl.uniform3fv(light_colors_loc, math.flatten(light_colors));
+	gl.uniform1i(num_lights_loc, light_positions.length);
+	gl.uniform3fv(view_pos_loc, camera_pos);
+
 	let model = transform;
-	let modelview = math.multiply(view_mtx, model);
-	gl.uniformMatrix4fv(mv_loc, true, to_array(modelview));
+	gl.uniformMatrix4fv(model_loc, true, to_array(model));
+	gl.uniformMatrix4fv(view_loc, true, to_array(view_mtx));
+	let normal_mtx = math.transpose(math.inv(model));
+	gl.uniformMatrix4fv(normal_mtx_loc, true, to_array(normal_mtx));
 
 	gl.uniform1i(is_tex_loc, texture != null);
 
