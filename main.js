@@ -5,6 +5,7 @@ var cube_node, base_node, reticle_node, coll_ids = [];
 var spin = 45;
 var fps_camera = true;
 var last_shoot_time = -1;
+var gunflash = -1;
 var shading_enabled = true;
 
 function main_loop() {
@@ -44,6 +45,12 @@ function main_loop() {
 		gl.uniform1i(is_shaded_loc, false);
 		draw_node(reticle_node, null);
 		gl.uniform1i(is_shaded_loc, shading_enabled);
+	}
+
+	if(gunflash != -1 && performance.now()-last_shoot_time >= 50) {
+		light_positions.splice(gunflash,1);	// remove gunflash light source
+		light_colors.splice(gunflash,1);
+		gunflash = -1;
 	}
 }
 
@@ -121,6 +128,15 @@ function init() {
 		if(last_shoot_time == -1 || performance.now()-last_shoot_time >= 1000) {
 			last_shoot_time = performance.now();
 			hit_zombie_check(check_ray_intersect(camera_pos, camera_dir(camera_rot), [ player_coll_id ]));
+
+			// apply random recoil
+			camera_rot[0] += Math.random()*10;
+			camera_rot[1] += Math.random()*10-5;
+
+			// add gunflash light source
+			light_positions.push(camera_pos);
+			light_colors.push([.8,.58,.5]);
+			gunflash = light_positions.length-1;
 		}
 	});
 
