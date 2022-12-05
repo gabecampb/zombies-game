@@ -18,9 +18,9 @@ var model_loc, view_loc, proj_loc, is_tex_loc, tex_loc, normal_mtx_loc, tex_scal
 var is_shaded_loc, light_coords_loc, light_colors_loc, num_lights_loc, ambient_loc, view_pos_loc;
 
 // interleaved (V3-N3-T2) VBOs + index buffers
-var cube_vbo, cube_ibo, sphere_vbo;
+var cube_vbo, cube_ibo, sphere_vbo, cylinder_vbo;
 var n_sphere_subdiv = 5;
-var n_sphere_verts = 0;
+var n_sphere_verts = 0, n_cylinder_verts = 0;
 
 
 
@@ -252,17 +252,17 @@ function init_sphere() {
 	let sphere_data = [];
 
 	function define_triangle(v1, v2, v3) {
-		sphere_data.push([v3[0], v3[1], v3[2]]);
-		sphere_data.push([v3[0], v3[1], v3[2]]);
-		sphere_data.push([.5*math.acos(v3[0])/Math.PI, .5*math.asin(v3[1]/math.sqrt(1.-v3[0]*v3[0]))/Math.PI]);
+		sphere_data.push([ v3[0], v3[1], v3[2] ]);
+		sphere_data.push([ v3[0], v3[1], v3[2] ]);
+		sphere_data.push([ .5*math.acos(v3[0])/Math.PI, .5*math.asin(v3[1]/math.sqrt(1.-v3[0]*v3[0]))/Math.PI ]);
 
-		sphere_data.push([v2[0], v2[1], v2[2]]);
-		sphere_data.push([v2[0], v2[1], v2[2]]);
-		sphere_data.push([.5*math.acos(v2[0])/Math.PI, .5*math.asin(v2[1]/math.sqrt(1.-v2[0]*v2[0]))/Math.PI]);
+		sphere_data.push([ v2[0], v2[1], v2[2] ]);
+		sphere_data.push([ v2[0], v2[1], v2[2] ]);
+		sphere_data.push([ .5*math.acos(v2[0])/Math.PI, .5*math.asin(v2[1]/math.sqrt(1.-v2[0]*v2[0]))/Math.PI ]);
 
-		sphere_data.push([v1[0], v1[1], v1[2]]);
-		sphere_data.push([v1[0], v1[1], v1[2]]);
-		sphere_data.push([.5*math.acos(v1[0])/Math.PI, .5*math.asin(v1[1]/math.sqrt(1.-v1[0]*v1[0]))/Math.PI]);
+		sphere_data.push([ v1[0], v1[1], v1[2] ]);
+		sphere_data.push([ v1[0], v1[1], v1[2] ]);
+		sphere_data.push([ .5*math.acos(v1[0])/Math.PI, .5*math.asin(v1[1]/math.sqrt(1.-v1[0]*v1[0]))/Math.PI ]);
 
 		n_sphere_verts += 3;
 	}
@@ -303,9 +303,111 @@ function init_sphere() {
 	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(to_array(sphere_data)), gl.STATIC_DRAW);
 }
 
+// generate cylinder mesh
+function init_cylinder() {
+	let cylinder_data = [];
+
+	let n_slices = 36;		// # of slices around cylinder
+	let radius = .5;
+
+	let top_points = [], bottom_points = [];
+	for(let i = 0; i <= n_slices; i++) {
+		let theta = 2.*i*Math.PI/n_slices;
+		top_points.push([ radius*math.sin(theta), .5, radius*math.cos(theta) ]);
+		bottom_points.push([ radius*math.sin(theta), -.5, radius*math.cos(theta) ]);
+	}
+
+	top_points.push([ 0., .5, radius ]);
+	bottom_points.push([ 0. -.5, radius ]);
+
+	// generate the side of cylinder
+	for(let i = 0; i <= n_slices; i++) {
+		let v1 = top_points[i], v4 = top_points[i+1];
+		let v2 = bottom_points[i], v3 = bottom_points[i+1];
+		let u = [v2[0]-v1[0], v2[1]-v1[1], v2[2]-v1[2]];
+		let v = [v3[0]-v2[0], v3[1]-v2[1], v3[2]-v2[2]];
+
+		let normal = math.cross(u,v);
+		normal = math.divide(normal, math.norm(normal));
+
+		cylinder_data.push([ v1[0], v1[1], v1[2] ]);
+		cylinder_data.push([ normal[0], normal[1], normal[2] ]);
+		cylinder_data.push([ (i+1)/n_slices, 0. ]);
+
+		cylinder_data.push([ v2[0], v2[1], v2[2] ]);
+		cylinder_data.push([ normal[0], normal[1], normal[2] ]);
+		cylinder_data.push([ i/n_slices, 1. ]);
+
+		cylinder_data.push([ v3[0], v3[1], v3[2] ]);
+		cylinder_data.push([ normal[0], normal[1], normal[2] ]);
+		cylinder_data.push([(i+1)/n_slices, 1. ]);
+
+		cylinder_data.push([ v1[0], v1[1], v1[2] ]);
+		cylinder_data.push([ normal[0], normal[1], normal[2] ]);
+		cylinder_data.push([ (i+1)/n_slices, 0. ]);
+
+		cylinder_data.push([ v3[0], v3[1], v3[2] ]);
+		cylinder_data.push([ normal[0], normal[1], normal[2] ]);
+		cylinder_data.push([ (i+1)/n_slices, 1. ]);
+
+		cylinder_data.push([ v4[0], v4[1], v4[2] ]);
+		cylinder_data.push([ normal[0], normal[1], normal[2] ]);
+		cylinder_data.push([ (i+1)/n_slices, 0. ]);
+
+		n_cylinder_verts += 6;
+	}
+
+	// generate the top of cylinder
+	for(let i = 0; i <= n_slices; i++) {
+		let normal = [ 0., -1., 0. ];
+		let v1 = [ 0., .5, 0. ];
+		let v2 = top_points[i];
+		let v3 = top_points[i+1];
+		cylinder_data.push([ v1[0], v1[1], v1[2] ]);
+		cylinder_data.push([ normal[0], normal[1], normal[2] ]);
+		cylinder_data.push([0., 1.]);
+
+		cylinder_data.push([ v2[0], v2[1], v2[2] ]);
+		cylinder_data.push([ normal[0], normal[1], normal[2] ]);
+		cylinder_data.push([0., 1.]);
+
+		cylinder_data.push([ v3[0], v3[1], v3[2] ]);
+		cylinder_data.push([ normal[0], normal[1], normal[2] ]);
+		cylinder_data.push([0., 1.]);
+
+		n_cylinder_verts += 3;
+	}
+
+	// generate the bottom of cylinder
+	for(let i = 0; i <= n_slices; i++) {
+		let normal = [ 0., -1., 0. ];
+		let v1 = [ 0., -.5, 0. ];
+		let v2 = bottom_points[i];
+		let v3 = bottom_points[i+1];
+		cylinder_data.push([ v3[0], v3[1], v3[2] ]);
+		cylinder_data.push([ normal[0], normal[1], normal[2] ]);
+		cylinder_data.push([0., 1.]);
+
+		cylinder_data.push([ v2[0], v2[1], v2[2] ]);
+		cylinder_data.push([ normal[0], normal[1], normal[2] ]);
+		cylinder_data.push([0., 1.]);
+
+		cylinder_data.push([ v1[0], v1[1], v1[2] ]);
+		cylinder_data.push([ normal[0], normal[1], normal[2] ]);
+		cylinder_data.push([0., 1.]);
+
+		n_cylinder_verts += 3;
+	}
+
+	cylinder_vbo = gl.createBuffer();
+	gl.bindBuffer(gl.ARRAY_BUFFER, cylinder_vbo);
+	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(to_array(cylinder_data)), gl.STATIC_DRAW);
+}
+
 function init_vbos() {
 	init_cube();
 	init_sphere();
+	init_cylinder();
 }
 
 function get_perspective(near, far, fovy, aspect) {
@@ -502,8 +604,9 @@ function draw_node(node, transform) {
 	let tmat = transform == null ? node.transform : math.multiply(transform, node.transform);
 
 	switch(node.type) {
-		case NODE_CUBE:		draw_vbo(cube_vbo, cube_ibo, 36, tmat, node.texture);			break;
-		case NODE_SPHERE:	draw_vbo(sphere_vbo, null, n_sphere_verts, tmat, node.texture);	break;
+		case NODE_CUBE:		draw_vbo(cube_vbo, cube_ibo, 36, tmat, node.texture);				break;
+		case NODE_SPHERE:	draw_vbo(sphere_vbo, null, n_sphere_verts, tmat, node.texture);		break;
+		case NODE_CYLINDER:	draw_vbo(cylinder_vbo, null, n_cylinder_verts, tmat, node.texture);	break;
 	}
 	for(let i = 0; node.children != null && i < node.children.length; i++)
 		draw_node(node.children[i], tmat);
