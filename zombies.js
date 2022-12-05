@@ -20,7 +20,7 @@ function hit_player_check(coll_id) {
 function add_zombie(pos) {
 	let zombie = {
 		hp: 3,			// each shot takes 1 hp
-		torso: create_node(NODE_MODEL),
+		torso: create_node(NODE_CUBE),
 		coll_id: create_collider(pos, [1,2,1]),
 		start_time: performance.now()
 	};
@@ -28,27 +28,27 @@ function add_zombie(pos) {
 	set_node_properties(zombie.torso, math.add(pos,[0,-.25,0]), [0,0,0], [.5,.5,.2]);
 	add_child(colliders[zombie.coll_id], zombie.torso);
 
-	let l_arm = create_node(NODE_MODEL);
+	let l_arm = create_node(NODE_CUBE);
 	set_node_properties(l_arm, [-.65,0,0], [0,0,0], [.3,1,.5]);
 	set_node_pivot(l_arm, [0,1,0]);
 	add_child(zombie.torso, l_arm);
 
-	let r_arm = create_node(NODE_MODEL);
+	let r_arm = create_node(NODE_CUBE);
 	set_node_properties(r_arm, [.65,0,0], [0,0,0], [.3,1,.5]);
 	set_node_pivot(r_arm, [0,1,0]);
 	add_child(zombie.torso, r_arm);
 
-	let l_leg = create_node(NODE_MODEL);
+	let l_leg = create_node(NODE_CUBE);
 	set_node_properties(l_leg, [-.25,-1,0], [0,0,0], [.4,1,.8]);
 	set_node_pivot(l_leg, [0,1,0]);
 	add_child(zombie.torso, l_leg);
 
-	let r_leg = create_node(NODE_MODEL);
+	let r_leg = create_node(NODE_CUBE);
 	set_node_properties(r_leg, [.25,-1,0], [0,0,0], [.4,1,.8]);
 	set_node_pivot(r_leg, [0,1,0]);
 	add_child(zombie.torso, r_leg);
 
-	let head = create_node(NODE_MODEL);
+	let head = create_node(NODE_CUBE);
 	set_node_properties(head, [0,.75,0], [0,0,0], [.65,.5,.75]);
 	add_child(zombie.torso, head);
 

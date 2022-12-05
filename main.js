@@ -1,7 +1,8 @@
 "use strict";
 window.onload = init;
 
-var cube_node, base_node, reticle_node, coll_ids = [];
+var world_nodes = [];
+var player_node, reticle_node, coll_ids = [];
 var spin = 45;
 var fps_camera = true;
 var last_shoot_time = -1;
@@ -14,13 +15,14 @@ function main_loop() {
 	gl.uniform1i(is_shaded_loc, shading_enabled);
 
 	gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-	if(fps_camera) camera_pos = [cube_node.pos[0], cube_node.pos[1] + .2, cube_node.pos[2]];
+	if(fps_camera) camera_pos = [player_node.pos[0], player_node.pos[1] + .2, player_node.pos[2]];
 	update_viewproj();
 
-	set_node_properties(cube_node, cube_node.pos, [0,spin,0], cube_node.scale);
-	draw_node(cube_node, null);
+	set_node_properties(player_node, player_node.pos, [0,spin,0], player_node.scale);
+	draw_node(player_node, null);
 	spin += 1;
-	draw_node(base_node, null);
+	for(let i = 0; i < world_nodes.length; i++)
+		draw_node(world_nodes[i], null);
 	render_zombies();
 
 	let x_shift = d_pressed-a_pressed;
@@ -38,7 +40,7 @@ function main_loop() {
 	}
 	translate_collider(coll_ids[0], [0,-.1,0]);
 
-	progress_zombies(cube_node.pos);
+	progress_zombies(player_node.pos);
 
 	if(last_shoot_time == -1 || performance.now()-last_shoot_time >= 1000) {
 		clear_viewproj();
@@ -114,15 +116,13 @@ function init() {
 		toggle_key(event.keyCode, false);
 	});
 
-	cube_node = create_node(NODE_MODEL);
-	base_node = create_node(NODE_MODEL);
-	reticle_node = create_node(NODE_MODEL);
-	set_node_properties(cube_node, [0,0,-8], [0,0,0], [1,2,1]);
-	set_node_properties(base_node, [0,-5,0], [0,0,0], [50,.5,50]);
+	player_node = create_node(NODE_CUBE);
+	reticle_node = create_node(NODE_CUBE);
+	set_node_properties(player_node, [0,0,-8], [0,0,0], [1,2,1]);
 	set_node_properties(reticle_node, [0,0,0], [0,0,0], [.025,.05,.05]);
 
-	coll_ids.push(create_collider(cube_node.pos, cube_node.scale));
-	add_child(colliders[coll_ids[0]], cube_node);
+	coll_ids.push(create_collider(player_node.pos, player_node.scale));
+	add_child(colliders[coll_ids[0]], player_node);
 	player_coll_id = coll_ids[0];
 	canvas.addEventListener("mousedown", function(event) {
 		if(last_shoot_time == -1 || performance.now()-last_shoot_time >= 1000) {
@@ -140,8 +140,15 @@ function init() {
 		}
 	});
 
+	let base_node = create_node(NODE_CUBE);
+	set_node_properties(base_node, [0,-5,0], [0,0,0], [50,.5,50]);
 	coll_ids.push(create_collider(base_node.pos, base_node.scale));
 	add_child(colliders[coll_ids[1]], base_node);
+	world_nodes.push(base_node);
+
+	let sphere_node = create_node(NODE_SPHERE);
+	set_node_properties(sphere_node, [-6,3,-3], [0,0,0], [3,3,3]);
+	world_nodes.push(sphere_node);
 
 	load_texture(base_node, "textures/grass.jpg");
 	base_node.tex_scale = [10,10];

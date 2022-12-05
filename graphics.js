@@ -18,7 +18,9 @@ var model_loc, view_loc, proj_loc, is_tex_loc, tex_loc, normal_mtx_loc, tex_scal
 var is_shaded_loc, light_coords_loc, light_colors_loc, num_lights_loc, ambient_loc, view_pos_loc;
 
 // interleaved (V3-N3-T2) VBOs + index buffers
-var cube_vbo, cube_ibo;
+var cube_vbo, cube_ibo, sphere_vbo;
+var n_sphere_subdiv = 5;
+var n_sphere_verts = 0;
 
 
 
@@ -132,6 +134,13 @@ function to_array(matrix) {
 	return math.flatten(matrix).valueOf();
 }
 
+function lerp(a,b,t) {
+	let result = [];
+	for(let i = 0; i < a.length && i < b.length; i++)
+		result.push(a[i] + (b[i]-a[i])*t);
+	return result;
+}
+
 function gfx_init() {
 	try {
 		let canvas = document.getElementById("webglcanvas");
@@ -193,7 +202,7 @@ function init_program() {
 	tcoord_loc = gl.getAttribLocation(gl_program, "v_tcoord");
 }
 
-function init_vbos() {
+function init_cube() {
 	let cube_data = new Float32Array([
 		-0.5, -0.5, 0.5,	0, 0, 1,	0, 0,		// face 0
 		0.5, -0.5, 0.5,		0, 0, 1,	0, 1,
@@ -233,20 +242,70 @@ function init_vbos() {
 	gl.bindBuffer(gl.ARRAY_BUFFER, cube_vbo);
 	gl.bufferData(gl.ARRAY_BUFFER, cube_data, gl.STATIC_DRAW);
 
-	gl.vertexAttribPointer(coords_loc, 3, gl.FLOAT, false, 32, 0);
-	gl.enableVertexAttribArray(coords_loc);
-	if(normal_loc != -1) {
-		gl.vertexAttribPointer(normal_loc, 3, gl.FLOAT, true, 32, 12);
-		gl.enableVertexAttribArray(normal_loc);
-	}
-	if(tcoord_loc != -1) {
-		gl.vertexAttribPointer(tcoord_loc, 2, gl.FLOAT, false, 32, 24);
-		gl.enableVertexAttribArray(tcoord_loc);
-	}
-
 	cube_ibo = gl.createBuffer();
 	gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, cube_ibo);
 	gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, cube_indices, gl.STATIC_DRAW);
+}
+
+// generate sphere mesh (using recursive subdivision of a tetrahedron)
+function init_sphere() {
+	let sphere_data = [];
+
+	function define_triangle(v1, v2, v3) {
+		sphere_data.push([v3[0], v3[1], v3[2]]);
+		sphere_data.push([v3[0], v3[1], v3[2]]);
+		sphere_data.push([.5*math.acos(v3[0])/Math.PI, .5*math.asin(v3[1]/math.sqrt(1.-v3[0]*v3[0]))/Math.PI]);
+
+		sphere_data.push([v2[0], v2[1], v2[2]]);
+		sphere_data.push([v2[0], v2[1], v2[2]]);
+		sphere_data.push([.5*math.acos(v2[0])/Math.PI, .5*math.asin(v2[1]/math.sqrt(1.-v2[0]*v2[0]))/Math.PI]);
+
+		sphere_data.push([v1[0], v1[1], v1[2]]);
+		sphere_data.push([v1[0], v1[1], v1[2]]);
+		sphere_data.push([.5*math.acos(v1[0])/Math.PI, .5*math.asin(v1[1]/math.sqrt(1.-v1[0]*v1[0]))/Math.PI]);
+
+		n_sphere_verts += 3;
+	}
+
+	function div_triangle(v1, v2, v3, n) {
+		if(n > 0) {
+			var v1_v2 = lerp(v1, v2, .5);
+			var v1_v3 = lerp(v1, v3, .5);
+			var v2_v3 = lerp(v2, v3, .5);
+
+			v1_v2 = math.divide(v1_v2, math.norm(v1_v2));
+			v1_v3 = math.divide(v1_v3, math.norm(v1_v3));
+			v2_v3 = math.divide(v2_v3, math.norm(v2_v3));
+
+			div_triangle(v1,	v1_v2,	v1_v3, n-1);
+			div_triangle(v1_v2,	v2,		v2_v3, n-1);
+			div_triangle(v2_v3,	v3,		v1_v3, n-1);
+			div_triangle(v1_v2,	v2_v3,	v1_v3, n-1);
+	    } else
+			define_triangle(v1, v2, v3);
+	}
+
+	function tetrahedron(v1, v2, v3, v4, n) {
+		div_triangle(v1, v2, v3, n);
+		div_triangle(v4, v3, v2, n);
+		div_triangle(v1, v4, v2, n);
+		div_triangle(v1, v3, v4, n);
+	}
+
+	var v1 = [ 0., 0., -1. ];
+	var v2 = [ 0., 0.942809, 0.333333 ];
+	var v3 = [ -0.816497, -0.471405, 0.333333 ];
+	var v4 = [ 0.816497, -0.471405, 0.333333 ];
+	tetrahedron(v1, v2, v3, v4, n_sphere_subdiv);
+
+	sphere_vbo = gl.createBuffer();
+	gl.bindBuffer(gl.ARRAY_BUFFER, sphere_vbo);
+	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(to_array(sphere_data)), gl.STATIC_DRAW);
+}
+
+function init_vbos() {
+	init_cube();
+	init_sphere();
 }
 
 function get_perspective(near, far, fovy, aspect) {
@@ -352,7 +411,20 @@ function update_viewproj() {
 	gl.uniformMatrix4fv(proj_loc, true, to_array(proj));
 }
 
-function draw_cube(transform, texture) {
+function set_vertex_attribs() {
+	gl.vertexAttribPointer(coords_loc, 3, gl.FLOAT, false, 32, 0);
+	gl.enableVertexAttribArray(coords_loc);
+	if(normal_loc != -1) {
+		gl.vertexAttribPointer(normal_loc, 3, gl.FLOAT, true, 32, 12);
+		gl.enableVertexAttribArray(normal_loc);
+	}
+	if(tcoord_loc != -1) {
+		gl.vertexAttribPointer(tcoord_loc, 2, gl.FLOAT, false, 32, 24);
+		gl.enableVertexAttribArray(tcoord_loc);
+	}
+}
+
+function draw_vbo(vbo, ibo, n_indices, transform, texture) {
 	if(texture != null) {	// bind texture to sampler
 		gl.activeTexture(gl.TEXTURE0);
 		gl.bindTexture(gl.TEXTURE_2D, texture);
@@ -374,9 +446,13 @@ function draw_cube(transform, texture) {
 
 	gl.uniform1i(is_tex_loc, texture != null);
 
-	gl.bindBuffer(gl.ARRAY_BUFFER, cube_vbo);
-	gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, cube_ibo);
-	gl.drawElements(gl.TRIANGLES, 36, gl.UNSIGNED_SHORT, 0);
+	gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
+	set_vertex_attribs();
+	if(ibo != null) {
+		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo);
+		gl.drawElements(gl.TRIANGLES, n_indices, gl.UNSIGNED_SHORT, 0);
+	} else
+		gl.drawArrays(gl.TRIANGLES, 0, n_indices);
 }
 
 
@@ -384,7 +460,7 @@ function draw_cube(transform, texture) {
 
 function create_node(type) {
 	var node = {
-		type: type,					// NODE_AABB, or NODE_MODEL
+		type: type,					// any one of the node types defined in common.js
 		pos: [0,0,0],
 		rot: [0,0,0],
 		scale: [1,1,1],
@@ -425,7 +501,10 @@ function draw_node(node, transform) {
 	gl.uniform2fv(tex_scale_loc, node.tex_scale);
 	let tmat = transform == null ? node.transform : math.multiply(transform, node.transform);
 
-	draw_cube(tmat, node.texture);
+	switch(node.type) {
+		case NODE_CUBE:		draw_vbo(cube_vbo, cube_ibo, 36, tmat, node.texture);			break;
+		case NODE_SPHERE:	draw_vbo(sphere_vbo, null, n_sphere_verts, tmat, node.texture);	break;
+	}
 	for(let i = 0; node.children != null && i < node.children.length; i++)
 		draw_node(node.children[i], tmat);
 }
