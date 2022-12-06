@@ -8,6 +8,7 @@ var fps_camera = true;
 var last_shoot_time = -1;
 var gunflash = -1;
 var shading_enabled = true;
+var pause_zombies = false;
 
 function main_loop() {
 	requestAnimationFrame(main_loop);
@@ -37,13 +38,14 @@ function main_loop() {
 	} else {
 		camera_pos = math.add(camera_pos, math.multiply(right, x_shift*.1));
 		camera_pos = math.add(camera_pos, math.multiply(fwd, z_shift*.1));
-		camera_pos = math.add(camera_pos, [0, (space_pressed-shift_pressed)*.1, 0]);
+		camera_pos = math.add(camera_pos, [0, (q_pressed-e_pressed)*.1, 0]);
 	}
 	translate_collider(player_coll_id, [0,-.1,0]);
 
-	progress_zombies(player_node.pos);
+	if(!pause_zombies)
+		progress_zombies(player_node.pos);
 
-	if(last_shoot_time == -1 || performance.now()-last_shoot_time >= 1000) {
+	if(fps_camera && (last_shoot_time == -1 || performance.now()-last_shoot_time >= 1000)) {
 		clear_viewproj();
 		gl.uniform1i(is_shaded_loc, false);
 		draw_node(reticle_node, null);
@@ -58,10 +60,10 @@ function main_loop() {
 }
 
 function toggle_key(key, state) {
-	if(key == 16) shift_pressed = state;
-	if(key == 32) space_pressed = state;
 	if(key == 65) a_pressed = state;
 	if(key == 68) d_pressed = state;
+	if(key == 69) e_pressed = state;
+	if(key == 81) q_pressed = state;
 	if(key == 83) s_pressed = state;
 	if(key == 87) w_pressed = state;
 }
@@ -139,6 +141,7 @@ function init() {
 	window.addEventListener("keydown", function(event) {
 		toggle_key(event.keyCode, true);
 		if(event.keyCode == 76) shading_enabled = !shading_enabled;
+		if(event.keyCode == 80) pause_zombies = !pause_zombies;
 		if(event.keyCode == 86) fps_camera = !fps_camera;
 	});
 	window.addEventListener("keyup", function(event) {
@@ -154,7 +157,7 @@ function init() {
 	add_child(colliders[coll_ids[0]], player_node);
 	player_coll_id = coll_ids[0];
 	canvas.addEventListener("mousedown", function(event) {
-		if(last_shoot_time == -1 || performance.now()-last_shoot_time >= 1000) {
+		if(fps_camera && (last_shoot_time == -1 || performance.now()-last_shoot_time >= 1000)) {
 			last_shoot_time = performance.now();
 			hit_zombie_check(check_ray_intersect(camera_pos, camera_dir(camera_rot), [ player_coll_id ]));
 

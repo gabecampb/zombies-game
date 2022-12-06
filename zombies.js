@@ -21,11 +21,11 @@ function add_zombie(pos) {
 	let zombie = {
 		hp: 3,			// each shot takes 1 hp
 		torso: create_node(NODE_CUBE),
-		coll_id: create_collider(pos, [1,2,1]),
+		coll_id: create_collider(pos, [1,1.25,1]),
 		start_time: performance.now()
 	};
 
-	set_node_properties(zombie.torso, math.add(pos,[0,-.25,0]), [0,0,0], [.5,.5,.2]);
+	set_node_properties(zombie.torso, math.add(pos,[0,.125,0]), [0,0,0], [.5,.5,.2]);
 	add_child(colliders[zombie.coll_id], zombie.torso);
 
 	let l_arm = create_node(NODE_CUBE);
