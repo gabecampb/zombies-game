@@ -9,6 +9,7 @@ var last_shoot_time = -1;
 var gunflash = -1;
 var shading_enabled = true;
 var pause_zombies = false;
+var camera_bob = 0;
 
 function main_loop() {
 	requestAnimationFrame(main_loop);
@@ -17,7 +18,10 @@ function main_loop() {
 	gl.uniform1f(time_loc, performance.now());
 
 	gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-	if(fps_camera) camera_pos = [player_node.pos[0], player_node.pos[1] + .2, player_node.pos[2]];
+	if(fps_camera) {
+		camera_pos = [player_node.pos[0], player_node.pos[1] + .2, player_node.pos[2]];
+		camera_pos[1] += .05 * math.sin(camera_bob);
+	}
 	update_viewproj();
 
 	set_node_properties(player_node, player_node.pos, [0,spin,0], player_node.scale);
@@ -35,6 +39,11 @@ function main_loop() {
 	if(fps_camera) {
 		translate_collider(player_coll_id, math.multiply(right, x_shift*.1));
 		translate_collider(player_coll_id, math.multiply(fwd, z_shift*.1));
+		if(!x_shift && !z_shift) {
+			camera_bob -= .25;
+			if(camera_bob+.25 > Math.PI && camera_bob-.25 <= Math.PI) camera_bob = 0;
+		} else camera_bob += .25;
+		if(camera_bob >= 2.*Math.PI || camera_bob < 0) camera_bob = 0;
 	} else {
 		camera_pos = math.add(camera_pos, math.multiply(right, x_shift*.1));
 		camera_pos = math.add(camera_pos, math.multiply(fwd, z_shift*.1));
