@@ -12,7 +12,7 @@ function create_checkboard() {
 			tex_data[(y*32+x)*4 + 0] = (x + y) % 2 == 0 ? 0xFF : 0;
 			tex_data[(y*32+x)*4 + 1] = (x + y) % 2 == 0 ? 0xFF : 0;
 			tex_data[(y*32+x)*4 + 2] = (x + y) % 2 == 0 ? 0xFF : 0;
-			tex_data[(y*32+x)*4 + 3] = (x + y) % 2 == 0 ? 0xFF : 0;
+			tex_data[(y*32+x)*4 + 3] = 0xFF;
 		}
 
 	return tex_data;
