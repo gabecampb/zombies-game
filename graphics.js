@@ -121,10 +121,10 @@ let fshader_src =
 				vec3 diffuse = diff * light_color;
 
 				// calculate specular lighting (Blinn-Phong model)
-				float spec_strength = .3;
+				float spec_strength = .5;
 				vec3 view_dir = normalize(u_view_pos - f_pos);
 				vec3 halfway_dir = normalize(light_dir + view_dir);
-				float spec = pow(max(dot(norm, halfway_dir), 0.), 8.);
+				float spec = pow(max(dot(norm, halfway_dir), 0.), 16.);
 				vec3 specular = spec_strength * spec * light_color;
 
 				// calculate attenuation
