@@ -13,6 +13,7 @@ function main_loop() {
 	requestAnimationFrame(main_loop);
 
 	gl.uniform1i(is_shaded_loc, shading_enabled);
+	gl.uniform1f(time_loc, performance.now());
 
 	gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 	if(fps_camera) camera_pos = [player_node.pos[0], player_node.pos[1] + .2, player_node.pos[2]];
@@ -31,14 +32,14 @@ function main_loop() {
 	let right = camera_right_dir(camera_rot);
 	fwd[1] = right[1] = 0;
 	if(fps_camera) {
-		translate_collider(coll_ids[0], math.multiply(right, x_shift*.1));
-		translate_collider(coll_ids[0], math.multiply(fwd, z_shift*.1));
+		translate_collider(player_coll_id, math.multiply(right, x_shift*.1));
+		translate_collider(player_coll_id, math.multiply(fwd, z_shift*.1));
 	} else {
 		camera_pos = math.add(camera_pos, math.multiply(right, x_shift*.1));
 		camera_pos = math.add(camera_pos, math.multiply(fwd, z_shift*.1));
 		camera_pos = math.add(camera_pos, [0, (space_pressed-shift_pressed)*.1, 0]);
 	}
-	translate_collider(coll_ids[0], [0,-.1,0]);
+	translate_collider(player_coll_id, [0,-.1,0]);
 
 	progress_zombies(player_node.pos);
 
@@ -84,6 +85,34 @@ function lock_change() {
 		document.removeEventListener("mousemove", move_callback, false);	// pointer unlocked; disable mousemove listener
 }
 
+// adds a new tree to the world, given position of the bottom of the trunk
+function add_tree(pos) {
+	let angle = function() { return Math.random()*360.; }
+
+	let trunk_height = 3 + Math.random();
+	let root = create_node(NODE_SPHERE);		// root node of the tree's node tree - a static sphere at the top of the trunk (base of the crown)
+	set_node_properties(root, [pos[0], pos[1]+trunk_height+.5, pos[2]], [0,angle(),0], [1,1,1]);
+
+	let trunk = create_node(NODE_CYLINDER);
+	set_node_properties(trunk, [0,-trunk_height/2. - .5,0], [0,angle(),0], [.5,trunk_height,.5]);
+	add_child(root, trunk);
+	coll_ids.push(create_collider(math.add(root.pos,trunk.pos), trunk.scale));
+
+	let crown = create_node(NODE_SPHERE);
+	set_node_properties(crown, [0,1,0], [0,angle(),0], [2,2,2]);
+	add_child(root, crown);
+	crown.wind_effect = true;
+
+	// assign textures
+	load_texture(trunk, "textures/trunk.jpg");
+	load_texture(root, "textures/leaves.jpg");
+	root.tex_scale = [5,5];
+	load_texture(crown, "textures/leaves.jpg");
+	crown.tex_scale = [5,5];
+
+	world_nodes.push(root);
+}
+
 function init() {
 	let have_pointer_lock = 'pointerLockElement' in document || 'mozPointerLockElement' in document || 'webkitPointerLockElement' in document;
 	if(!have_pointer_lock) {
@@ -118,7 +147,7 @@ function init() {
 
 	player_node = create_node(NODE_CUBE);
 	reticle_node = create_node(NODE_CUBE);
-	set_node_properties(player_node, [0,0,-8], [0,0,0], [1,2,1]);
+	set_node_properties(player_node, [0,5,-8], [0,0,0], [1,2,1]);
 	set_node_properties(reticle_node, [0,0,0], [0,0,0], [.025,.05,.05]);
 
 	coll_ids.push(create_collider(player_node.pos, player_node.scale));
@@ -141,14 +170,23 @@ function init() {
 	});
 
 	let base_node = create_node(NODE_CUBE);
-	set_node_properties(base_node, [0,-5,0], [0,0,0], [50,.5,50]);
+	set_node_properties(base_node, [0,0,0], [0,0,0], [50,.5,50]);
 	coll_ids.push(create_collider(base_node.pos, base_node.scale));
-	add_child(colliders[coll_ids[1]], base_node);
 	world_nodes.push(base_node);
 
-	let sphere_node = create_node(NODE_SPHERE);
-	set_node_properties(sphere_node, [-6,3,-3], [0,0,0], [3,3,3]);
-	world_nodes.push(sphere_node);
+	add_tree([-5,.25,-8]);
+	add_tree([15,.25,-20]);
+	add_tree([12,.25,5]);
+	add_tree([3,.25,4]);
+	add_tree([2,.25,-15]);
+	add_tree([2,.25,-15]);
+	add_tree([20,.25,3]);
+	add_tree([18,.25,-9]);
+	add_tree([17,.25,-1]);
+	add_tree([-15,.25,-5]);
+	add_tree([-4,.25,10]);
+	add_tree([-9,.25,3]);
+	add_tree([-2,.25,-13]);
 
 	load_texture(base_node, "textures/grass.jpg");
 	base_node.tex_scale = [10,10];

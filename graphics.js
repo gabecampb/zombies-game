@@ -5,16 +5,16 @@
 var fovy = 70, near = .1, far = 75;
 var gl, gl_program;
 var camera_pos = [ 0,0,0 ];
-var camera_rot = [ 0,0,0 ];
+var camera_rot = [ 0,-90,0 ];
 var view_mtx;
 
-var light_positions = [ [0,0,0], [10,0,-10] ];
+var light_positions = [ [0,5,0], [10,5,-10] ];
 var light_colors = [ [1,0,0], [1,1,0] ];
 
 // attribute locations
 var coords_loc, normal_loc, tcoord_loc;
 // uniform locations
-var model_loc, view_loc, proj_loc, is_tex_loc, tex_loc, normal_mtx_loc, tex_scale_loc;
+var model_loc, view_loc, proj_loc, is_tex_loc, tex_loc, normal_mtx_loc, tex_scale_loc, time_loc, is_windy_loc;
 var is_shaded_loc, light_coords_loc, light_colors_loc, num_lights_loc, ambient_loc, view_pos_loc;
 
 // interleaved (V3-N3-T2) VBOs + index buffers
@@ -62,8 +62,19 @@ let vshader_src =
 	uniform mat4 u_model, u_view, u_projection, u_normal_mtx;
 	uniform vec2 u_tex_scale;
 
+	// wind effect related uniforms
+	uniform bool u_is_windy;
+	uniform float u_time;
+
 	void main() {
-		gl_Position = u_projection * u_view * u_model * vec4(v_coords,1.);
+		vec3 pos = v_coords;
+		if(u_is_windy) {
+			float mult = normalize(v_coords).x;
+			pos.x += 0.2 * sin(u_time/1000.) * mult;
+			pos.y += 0.1 * cos(u_time/750.) * mult;
+		}
+		gl_Position = u_projection * u_view * u_model * vec4(pos,1.);
+
 		f_normal = (u_normal_mtx * vec4(v_normal,1.)).xyz;
 		f_tcoord = v_tcoord * u_tex_scale;
 		f_pos = vec3(u_model * vec4(v_coords,1));
@@ -78,9 +89,11 @@ let fshader_src =
 	varying vec2 f_tcoord;
 	varying vec3 f_pos;
 
+	// texturing related uniforms
 	uniform bool u_is_textured;
 	uniform sampler2D u_texture;
 
+	// lighting related uniforms
 	uniform bool u_is_shaded;
 	uniform vec3 u_light_coords[10], u_light_colors[10];
 	uniform int u_num_lights;
@@ -190,6 +203,8 @@ function init_program() {
 	tex_loc = gl.getUniformLocation(gl_program, "u_texture");
 	normal_mtx_loc = gl.getUniformLocation(gl_program, "u_normal_mtx");
 	tex_scale_loc = gl.getUniformLocation(gl_program, "u_tex_scale");
+	time_loc = gl.getUniformLocation(gl_program, "u_time");
+	is_windy_loc = gl.getUniformLocation(gl_program, "u_is_windy");
 	is_shaded_loc = gl.getUniformLocation(gl_program, "u_is_shaded");
 	light_coords_loc = gl.getUniformLocation(gl_program, "u_light_coords");
 	light_colors_loc = gl.getUniformLocation(gl_program, "u_light_colors");
@@ -569,6 +584,7 @@ function create_node(type) {
 		pivot: [0,0,0],
 		texture: null,				// ID of GL TBO associated with this node
 		tex_scale: [1,1],
+		wind_effect: false,			// whether or not this node should be affected by wind
 
 		transform: math.identity(4,4),		// the node's transform matrix
 		children: null
@@ -601,6 +617,7 @@ function draw_node(node, transform) {
 		return;
 
 	gl.uniform2fv(tex_scale_loc, node.tex_scale);
+	gl.uniform1i(is_windy_loc, node.wind_effect);
 	let tmat = transform == null ? node.transform : math.multiply(transform, node.transform);
 
 	switch(node.type) {

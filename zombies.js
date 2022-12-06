@@ -1,5 +1,5 @@
 var zombies = [];
-var spawners = [ [0,0,-20], [-20,0,-10], [20,0,-10] ];		// positions of all zombie spawners
+var spawners = [ [0,5,-20], [-20,5,-10], [20,5,-10] ];		// positions of all zombie spawners
 var last_spawn_time = 0;
 var zombie_limit = 5;
 var spawn_freq = 2.5;	// how often to spawn zombies (in seconds)
