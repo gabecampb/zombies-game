@@ -22,7 +22,8 @@ function add_zombie(pos) {
 		hp: 3,			// each shot takes 1 hp
 		torso: create_node(NODE_CUBE),
 		coll_id: create_collider(pos, [1,1.25,1]),
-		start_time: performance.now()
+		start_time: performance.now(),
+		death_time: null
 	};
 
 	set_node_properties(zombie.torso, math.add(pos,[0,.125,0]), [0,0,0], [.5,.5,.2]);
@@ -61,13 +62,36 @@ function hit_zombie_check(coll_id) {
 		if(zombies[i].coll_id == coll_id) {
 			zombies[i].hp--;
 			if(zombies[i].hp <= 0) {
-				zombies.splice(i,1);
-				colliders.splice(coll_id,1);
-				for(let j = i; j < zombies.length; j++)
-					zombies[j].coll_id--;
+				idle_zombie_animation(zombies[i]);
+				zombies[i].death_time = performance.now();
 			}
 			return;
 		}
+}
+
+function dead_zombie_animation(zombie) {
+	if(zombie.death_time == null) return;
+
+	let elapsed = performance.now()-zombie.death_time;
+
+	let sine = math.sin((.5*Math.PI)*(elapsed/750.));
+	zombie.torso.rot[0] = -90. * sine;
+	zombie.torso.pos[1] -= .03 * sine;
+	set_node_properties(zombie.torso, zombie.torso.pos, zombie.torso.rot, zombie.torso.scale);
+
+	if(elapsed >= 750.) {	// remove zombie from game
+		let i = -1;
+		for(let j = 0; j < zombies.length; j++)
+			if(zombies[j] == zombie) {
+				i = j;
+				break;
+			}
+		if(i == -1) return;
+		colliders.splice(zombies[i].coll_id,1);
+		zombies.splice(i,1);
+		for(let j = i; j < zombies.length; j++)
+			zombies[j].coll_id--;
+	}
 }
 
 function step_zombie_animation(zombie) {
@@ -122,6 +146,10 @@ function progress_zombies(track_pos) {
 	// also apply gravity and update the zombie's animation
 	for(let i = 0; i < zombies.length; i++) {
 		let zombie = zombies[i];
+		if(zombie.death_time != null) {
+			dead_zombie_animation(zombie);
+			continue;
+		}
 		let dir = math.subtract(track_pos, zombie.torso.pos);
 		dir[1] = 0;
 		dir = math.divide(dir, math.norm(dir));
