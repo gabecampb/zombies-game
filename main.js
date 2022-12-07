@@ -182,7 +182,7 @@ function init() {
 	});
 
 	let base_node = create_node(NODE_CUBE);
-	set_node_properties(base_node, [0,0,0], [0,0,0], [50,.5,50]);
+	set_node_properties(base_node, [0,0,0], [0,0,0], [100,.5,100]);
 	coll_ids.push(create_collider(base_node.pos, base_node.scale));
 	world_nodes.push(base_node);
 
